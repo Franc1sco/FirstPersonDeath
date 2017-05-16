@@ -18,8 +18,9 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <clientprefs>
 
-#define PLUGIN_VERSION "2.0"
+#define PLUGIN_VERSION "2.1"
 
 new ClientCamera[MAXPLAYERS+1];
 
@@ -44,6 +45,10 @@ new game;
 #define HL2DM	3
 #define CSGO 4
 
+new Handle:cookiefpd;
+
+bool g_fpd[MAXPLAYERS + 1];
+
 public Plugin:myinfo = 
 {
 	name = "First Person Death (Redux)",
@@ -54,6 +59,7 @@ public Plugin:myinfo =
 };
 public OnPluginStart() 
 { 
+	
 	// set the game var
 	SetGameVersion();
 	
@@ -113,6 +119,91 @@ public OnPluginStart()
 	HookConVarChange(var_fpd_black, Cvar_Changed);
 	HookConVarChange(var_fpd_stay, Cvar_Changed);
 	
+	cookiefpd = RegClientCookie("First Person Death Pref", "FPD setting", CookieAccess_Private);
+	
+	SetCookieMenuItem(CookieMenuHandler_FPD, 0, "First Person Death");
+	
+	RegConsoleCmd("sm_fpd", Cmd_fpd, "Toggle First Person Death");
+	
+	for(int i = 1; i <= MaxClients; i++) {
+		if(IsClientInGame(i) && !IsFakeClient(i) && AreClientCookiesCached(i)) {
+			OnClientCookiesCached(i);
+		}
+	}
+	
+}
+
+public Action Cmd_fpd(int client, int args)
+{
+	if (client == 0)return Plugin_Handled;
+	
+	
+	g_fpd[client] = !g_fpd[client];
+		
+	if (g_fpd[client])
+	{
+		SetClientCookie(client, cookiefpd, "On");
+	}
+	else
+	{
+		SetClientCookie(client, cookiefpd, "Off");
+	}
+	char status[10], buffer[128];
+	if (g_fpd[client])
+	{
+		Format(status, sizeof(status), "Enabled");
+	}
+	else
+	{
+		Format(status, sizeof(status), "Disabled");
+	}
+		
+	Format(buffer, sizeof(buffer), "First Person Death: %s", status);
+	ReplyToCommand(client, buffer);
+	
+	return Plugin_Handled;
+}
+
+public CookieMenuHandler_FPD(client, CookieMenuAction:action, any:info, String:buffer[], maxlen)
+{
+	if (action == CookieMenuAction_DisplayOption)
+	{
+		decl String:status[10];
+		if (g_fpd[client])
+		{
+			Format(status, sizeof(status), "Enabled");
+		}
+		else
+		{
+			Format(status, sizeof(status), "Disabled");
+		}
+		
+		Format(buffer, maxlen, "First Person Death: %s", status);
+	}
+	// CookieMenuAction_SelectOption
+	else
+	{
+		g_fpd[client] = !g_fpd[client];
+		
+		if (g_fpd[client])
+		{
+			SetClientCookie(client, cookiefpd, "On");
+		}
+		else
+		{
+			SetClientCookie(client, cookiefpd, "Off");
+		}
+		
+		ShowCookieMenu(client);
+	}
+}
+
+public OnClientCookiesCached(client)
+{
+	decl String:buffer[10];
+	GetClientCookie(client, cookiefpd, buffer, sizeof(buffer));
+
+	g_fpd[client] = !StrEqual(buffer, "Off", false);
 }
 
 public OnEventShutdown()
@@ -183,6 +274,8 @@ public Action:PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 	new Client;
 	Client = GetClientOfUserId(GetEventInt(event, "userid"));
+	
+	if(!g_fpd[Client]) return Plugin_Continue;
 	
 	if (ClientOk(Client))
 	{	
