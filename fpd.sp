@@ -20,36 +20,38 @@
 #include <sdktools>
 #include <clientprefs>
 
-#define PLUGIN_VERSION "2.1"
+#pragma newdecls required
 
-new ClientCamera[MAXPLAYERS+1];
+#define PLUGIN_VERSION "2.2"
 
-
-new Handle:var_ftb; // mp_fadetoblack
-new Handle:var_fpd_enable;
-new Handle:var_fpd_black;
-new Handle:var_fpd_stay;
-new bool:ftb = false; // mp_fadetoblack
-new bool:fpd_enable = true;
-new fpd_black = 0;
-new Float:fpd_stay = 0.0;
-new bool:CL_Ragdoll[MAXPLAYERS+1];
-
-new String:Attachment[64];
+int ClientCamera[MAXPLAYERS+1];
 
 
-new game;
+Handle var_ftb; // mp_fadetoblack
+Handle var_fpd_enable;
+Handle var_fpd_black;
+Handle var_fpd_stay;
+bool ftb = false; // mp_fadetoblack
+bool fpd_enable = true;
+int fpd_black = 0;
+float fpd_stay = 0.0;
+bool CL_Ragdoll[MAXPLAYERS+1];
+
+char Attachment[64];
+
+
+int game;
 #define UNKNOWN 0
 #define CSTRIKE 1
 #define DODS	2
 #define HL2DM	3
 #define CSGO 4
 
-new Handle:cookiefpd;
+Handle cookiefpd;
 
 bool g_fpd[MAXPLAYERS + 1];
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "First Person Death (Redux)",
 	author = "Franc1sco franug & Eun",
@@ -57,7 +59,7 @@ public Plugin:myinfo =
 	version = PLUGIN_VERSION,
 	url = "http://steamcommunity.com/id/franug"
 };
-public OnPluginStart() 
+public void OnPluginStart() 
 { 
 	
 	// set the game var
@@ -164,11 +166,11 @@ public Action Cmd_fpd(int client, int args)
 	return Plugin_Handled;
 }
 
-public CookieMenuHandler_FPD(client, CookieMenuAction:action, any:info, String:buffer[], maxlen)
+public void CookieMenuHandler_FPD(int client, CookieMenuAction action, any info, char[] buffer, int maxlen)
 {
 	if (action == CookieMenuAction_DisplayOption)
 	{
-		decl String:status[10];
+		char status[10];
 		if (g_fpd[client])
 		{
 			Format(status, sizeof(status), "Enabled");
@@ -198,21 +200,15 @@ public CookieMenuHandler_FPD(client, CookieMenuAction:action, any:info, String:b
 	}
 }
 
-public OnClientCookiesCached(client)
+public void OnClientCookiesCached(int client)
 {
-	decl String:buffer[10];
+	char buffer[10];
 	GetClientCookie(client, cookiefpd, buffer, sizeof(buffer));
 
 	g_fpd[client] = !StrEqual(buffer, "Off", false);
 }
 
-public OnEventShutdown()
-{
-	UnhookEvent("player_death", PlayerDeath);
-	UnhookEvent("player_spawn", OnPlayerSpawn);
-}
-
-public Cvar_Changed(Handle:convar, const String:oldValue[], const String:newValue[])
+public void Cvar_Changed(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	if (convar == var_ftb)
 	{
@@ -233,9 +229,9 @@ public Cvar_Changed(Handle:convar, const String:oldValue[], const String:newValu
 	}
 }
 
-public Action:OnPlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+public Action OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 {
-	new Client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int Client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (ClientOk(Client))
 	{
 		
@@ -244,7 +240,7 @@ public Action:OnPlayerSpawn(Handle:event, const String:name[], bool:dontBroadcas
 			if (game == CSTRIKE)
 			{
 				// gsg and sas got not the attachment forward
-				decl String:ModelName[128];
+				char ModelName[128];
 				GetEntPropString(Client, Prop_Data, "m_ModelName", ModelName, sizeof(ModelName));
 				if (StrContains(ModelName, "ct_gsg9.mdl", false) > -1 || StrContains(ModelName, "ct_sas.mdl", false) > -1)
 				{
@@ -257,7 +253,7 @@ public Action:OnPlayerSpawn(Handle:event, const String:name[], bool:dontBroadcas
 			}
 			else
 			{
-				QueryClientConVar(Client, "cl_ragdoll_physics_enable", ConVarQueryFinished:ClientConVar, Client)
+				QueryClientConVar(Client, "cl_ragdoll_physics_enable", view_as<ConVarQueryFinished>(ClientConVar), Client)
 			}
 		}
 		
@@ -266,13 +262,13 @@ public Action:OnPlayerSpawn(Handle:event, const String:name[], bool:dontBroadcas
 	}
 }
 
-public Action:PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public Action PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!fpd_enable)
 	{
 		return Plugin_Continue;
 	}
-	new Client;
+	int Client;
 	Client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if(!g_fpd[Client]) return Plugin_Continue;
@@ -281,7 +277,7 @@ public Action:PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	{	
 		if (CL_Ragdoll[Client])
 		{
-			new ragdoll = GetEntPropEnt(Client, Prop_Send, "m_hRagdoll");	
+			int ragdoll = GetEntPropEnt(Client, Prop_Send, "m_hRagdoll");	
 			if (ragdoll<0)
 			{
 				return Plugin_Continue;
@@ -292,7 +288,7 @@ public Action:PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	return Plugin_Continue;
 }
 
-public ClientConVar(QueryCookie:cookie, Client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
+public void ClientConVar(QueryCookie cookie, int Client, ConVarQueryResult result, const char[] cvarName, const char[] cvarValue)
 {
 	if (StringToInt(cvarValue) > 0)
 		CL_Ragdoll[Client] = true;
@@ -301,26 +297,26 @@ public ClientConVar(QueryCookie:cookie, Client, ConVarQueryResult:result, const 
 }
 
 
-public SpawnCamAndAttach(Client, Ragdoll)
+public bool SpawnCamAndAttach(int Client,int Ragdoll)
 {
 	// Precache model
-	new String:StrModel[64];
+	char StrModel[64];
 	//Format(StrModel, sizeof(StrModel), "models/error.mdl");
 	Format(StrModel, sizeof(StrModel), "models/blackout.mdl");
 	PrecacheModel(StrModel, true);
 	
 	// Generate unique id for the client so we can set the parenting
 	// through parentname.
-	new String:StrName[64]; Format(StrName, sizeof(StrName), "fpd_Ragdoll%d", Client);
+	char StrName[64]; Format(StrName, sizeof(StrName), "fpd_Ragdoll%d", Client);
 	DispatchKeyValue(Ragdoll, "targetname", StrName);
 	
 	// Spawn dynamic prop entity
-	new Entity = CreateEntityByName("prop_dynamic");
+	int Entity = CreateEntityByName("prop_dynamic");
 	if (Entity == -1)
 		return false;
 	
 	// Generate unique id for the entity
-	new String:StrEntityName[64]; Format(StrEntityName, sizeof(StrEntityName), "fpd_RagdollCam%d", Entity);
+	char StrEntityName[64]; Format(StrEntityName, sizeof(StrEntityName), "fpd_RagdollCam%d", Entity);
 	
 	// Setup entity
 	DispatchKeyValue(Entity, "targetname", StrEntityName);
@@ -330,8 +326,8 @@ public SpawnCamAndAttach(Client, Ragdoll)
 	DispatchKeyValue(Entity, "rendermode", "10"); // dont render
 	DispatchKeyValue(Entity, "disableshadows", "1"); // no shadows
 	
-	new Float:angles[3]; GetClientEyeAngles(Client, angles);
-	new String:CamTargetAngles[64];
+	float angles[3]; GetClientEyeAngles(Client, angles);
+	char CamTargetAngles[64];
 	Format(CamTargetAngles, 64, "%f %f %f", angles[0], angles[1], angles[2]);
 	DispatchKeyValue(Entity, "angles", CamTargetAngles); 
 	
@@ -373,12 +369,12 @@ public SpawnCamAndAttach(Client, Ragdoll)
 
 
 // reset to player
-public Action:ClearCamTimer(Handle:timer, any:Client)
+public Action ClearCamTimer(Handle timer, any Client)
 {
 	ClearCam(Client);
 }
 
-public ClearCam(any: Client)
+public void ClearCam(any Client)
 {
 	if(ClientCamera[Client] && ClientOk(Client))
 	{
@@ -393,7 +389,7 @@ public ClearCam(any: Client)
 
 
 	
-public ClientOk(any: Client)
+public bool ClientOk(any Client)
 {
 	if (IsClientConnected(Client) && IsClientInGame(Client))
 	{
@@ -414,15 +410,15 @@ public ClientOk(any: Client)
 #define FFADE_STAYOUT	0x0008		// ignores the duration, stays faded out until new ScreenFade message received
 #define FFADE_PURGE		0x0010		// Purges all other fades, replacing them with this one
 
-public PerformFade(any: Client, duration, in2)
+public bool PerformFade(any Client, int duration, int in2)
 {
-	new color[4];
+	int color[4];
 	
 	color[0] = 0; 
 	color[1] = 0; 
 	color[2] = 0; 
 	color[3] = 255; 
-	new Handle:message=StartMessageOne("Fade",Client); 
+	Handle message=StartMessageOne("Fade",Client); 
 
 	if (GetUserMessageType() == UM_Protobuf) 
 	{ 
@@ -452,9 +448,9 @@ public PerformFade(any: Client, duration, in2)
 	return true;
 }
 
-public SetGameVersion()
+public void SetGameVersion()
 {
-	new String:gamestr[64];
+	char gamestr[64];
 	GetGameFolderName(gamestr, sizeof(gamestr));
 	if (!strcmp(gamestr, "cstrike"))
 		game = CSTRIKE;
@@ -470,9 +466,10 @@ public SetGameVersion()
 
 
 
-stock bool:IsEntNearWall(ent)
+stock bool IsEntNearWall(int ent)
 {
-	new Float:vOrigin[3], Float:vec[3], Float:vAngles[3], Handle:trace;
+	float vOrigin[3], vec[3], vAngles[3];
+	Handle trace;
 	GetEntPropVector(ent, Prop_Data, "m_vecAbsOrigin", vOrigin);
 	GetEntPropVector(ent, Prop_Data, "m_angAbsRotation", vAngles);  // <-- This dont works, because on SetAttachment this get currupt
 	//PrintToChatAll("%f %f %f |  %f %f %f", vOrigin[0], vOrigin[1], vOrigin[2], vAngles[0], vAngles[1], vAngles[2] );
@@ -490,7 +487,7 @@ stock bool:IsEntNearWall(ent)
 	return false;
 }
 
-public bool:TraceRayDontHitSelf(entity, mask, any:data)
+public bool TraceRayDontHitSelf(int entity, int mask, any data)
 {
 	if(entity == data) // Check if the TraceRay hit the itself.
 	{
